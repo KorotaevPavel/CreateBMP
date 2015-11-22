@@ -1,26 +1,22 @@
-﻿// CreateBMP.cpp : Defines the entry point for the console application.
-//
+﻿#include "stdafx.h"
+// кроме stdafx.h тебе здесь ничто не нужно инклюдить
 
-#include "stdafx.h"
-#include <Windows.h>
-#include <algorithm>
-#include <memory>
+// используй типы из stdint.h
+const uint32_t width = 1920;
+const uint32_t height = 1080;
+const uint16_t depth = 24;
 
-const LONG width = 1920;
-const LONG height = 1080;
-const WORD depth = 24;
-
-void createBMP(BYTE* bitmapBits, LONG width, LONG height, WORD depth, LPCTSTR fileName)
+void createBMP(uint8_t* bitmapBits, uint32_t width, uint32_t height, uint16_t depth, LPCTSTR fileName)
 {
-	unsigned long headersSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
-	unsigned long pixelDataSize = height * ((width * (depth / 8)));
+	uint32_t headersSize = sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+	uint32_t pixelDataSize = height * ((width * (depth / 8)));
 
-	BITMAPFILEHEADER bmpFileHeader = { 0 };
+	BITMAPFILEHEADER bmpFileHeader = {}; // пустых скобок достаточно
 	bmpFileHeader.bfType = 0x4D42;
 	bmpFileHeader.bfOffBits = headersSize;
 	bmpFileHeader.bfSize = headersSize + pixelDataSize;
 
-	BITMAPINFOHEADER bmpInfoHeader = { 0 };
+	BITMAPINFOHEADER bmpInfoHeader = {};
 	bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bmpInfoHeader.biBitCount = depth;
 	bmpInfoHeader.biClrImportant = 0;
@@ -31,7 +27,7 @@ void createBMP(BYTE* bitmapBits, LONG width, LONG height, WORD depth, LPCTSTR fi
 	bmpInfoHeader.biPlanes = 1;
 	bmpInfoHeader.biSizeImage = pixelDataSize;
 
-	HANDLE hFile = CreateFile(fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hFile = CreateFile(fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL); // код спиздил?) С fopen'ом норм не получилось разобраться, а тут уже WinAPI =)
 	if (!hFile)
 		return;
 
@@ -43,37 +39,29 @@ void createBMP(BYTE* bitmapBits, LONG width, LONG height, WORD depth, LPCTSTR fi
 	CloseHandle(hFile);
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+int main()
 {
-	BYTE* buffer = new BYTE[width * 3 * height];
-	int c = 0;
-	int radius = 300;
+	std::vector<uint8_t> buffer(width * 3 * height); // используй стандартные контейнеры, ну в самом-то деле
+	const int radius = 300;
+
+	uint8_t* pData = buffer.data();
+
 	for (int i = 0; i < height; i++)
 	{
 		for (int j = 0; j < width; j++)
 		{
-			if (((height / 2 - i)*(height / 2 - i) + (width / 2 - j)*(width / 2 - j)) <= radius*radius)
-			{
-				buffer[c + 0] = (BYTE)0;
-				buffer[c + 1] = (BYTE)255;
-				buffer[c + 2] = (BYTE)0;
+			const bool isInside = (((height / 2 - i)*(height / 2 - i) + (width / 2 - j)*(width / 2 - j)) <= radius*radius);
+			
+			pData[0] = isInside ? (uint8_t)0		: 133;
+			pData[1] = isInside ? (uint8_t)255		: 133;
+			pData[2] = isInside ? (uint8_t)0		: 133;
 
-				c += 3;
-			}
-			else
-			{
-				buffer[c + 0] = (BYTE)133;   
-				buffer[c + 1] = (BYTE)133;   
-				buffer[c + 2] = (BYTE)133;   
-
-				c += 3;
-			}
+			pData += 3;
 		}
 	}
 
-	createBMP((BYTE*)buffer, width, height, depth, L"new_image.bmp");
+	createBMP((uint8_t*)buffer.data(), width, height, depth, L"new_image.bmp");
 
-	delete[] buffer;
 	return 0;
 }
 
